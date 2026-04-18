@@ -1,0 +1,11 @@
+# Core dependencies
+flask>=2.3
+opencv-python>=4.8
+numpy>=1.24
+ultralytics>=8.0
+
+# Raspberry Pi only (skip on dev/Windows machines)
+# picamera2        -- install via: sudo apt install -y python3-picamera2
+# RPi.GPIO         -- install via: sudo apt install -y python3-rpi.gpio
+# libcamera        -- bundled with picamera2 on Raspberry Pi OS
+# YB_Pcb_Car       -- provided by Yahboom SDK (copy YB_Pcb_Car.py into project dir)
