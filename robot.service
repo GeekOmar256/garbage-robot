@@ -1,0 +1,12 @@
+[Unit]
+Description=Garbage Robot Dashboard
+After=network.target
+
+[Service]
+ExecStart=/bin/bash /home/pi/robot/start.sh
+WorkingDirectory=/home/pi/robot
+Restart=on-failure
+User=pi
+
+[Install]
+WantedBy=multi-user.target
