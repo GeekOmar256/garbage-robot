@@ -389,7 +389,11 @@ class CameraHandler:
         try:
             cap = cv2.VideoCapture(self._usb_idx)
             if not cap.isOpened():
-                log.log(f"Cam{self.id}: USB /dev/video{self._usb_idx} not found", "ERROR")
+                log.log(f"Cam{self.id}: /dev/video{self._usb_idx} failed, re-scanning...", "WARN")
+                self._usb_idx = find_usb_camera()
+                cap = cv2.VideoCapture(self._usb_idx)
+            if not cap.isOpened():
+                log.log(f"Cam{self.id}: USB camera not found", "ERROR")
                 return False
             cap.set(cv2.CAP_PROP_FRAME_WIDTH,  640)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -695,12 +699,49 @@ class Robot:
 
 
 # =============================================================================
+# USB Camera Auto-Detection
+# =============================================================================
+def find_usb_camera():
+    """Return the /dev/videoN index of the first USB camera found via v4l2-ctl.
+    Falls back to scanning VideoCapture indices 0-20 if v4l2-ctl is unavailable."""
+    # Method 1: parse v4l2-ctl --list-devices
+    try:
+        out = subprocess.check_output(["v4l2-ctl", "--list-devices"],
+                                      stderr=subprocess.DEVNULL, timeout=5).decode()
+        usb_section = False
+        for line in out.splitlines():
+            if "usb" in line.lower():
+                usb_section = True
+            elif usb_section:
+                line = line.strip()
+                if line.startswith("/dev/video"):
+                    idx = int(line.replace("/dev/video", ""))
+                    log.log(f"USB camera auto-detected: /dev/video{idx}")
+                    return idx
+                elif line and not line.startswith("/dev/"):
+                    usb_section = False
+    except Exception:
+        pass
+
+    # Method 2: scan VideoCapture indices
+    log.log("v4l2-ctl unavailable, scanning VideoCapture indices...", "WARN")
+    for idx in range(20):
+        cap = cv2.VideoCapture(idx)
+        if cap.isOpened():
+            ret, _ = cap.read()
+            cap.release()
+            if ret:
+                log.log(f"USB camera found by scan: /dev/video{idx}")
+                return idx
+    log.log("No USB camera found", "ERROR")
+    return 0
+
+
+# =============================================================================
 # Flask App  –  global instances
 # =============================================================================
-# Camera 0 = CSI (Picamera2)
-# Camera 1 = USB (OpenCV) — /dev/video8 found by test_usb_camera.py
 cameras  = [CameraHandler(0, cam_type='csi'),
-            CameraHandler(1, cam_type='usb', usb_index=8)]
+            CameraHandler(1, cam_type='usb', usb_index=find_usb_camera())]
 robot    = Robot()
 detector = GarbageDetector()
 obstacle = ObstacleAvoidance()
